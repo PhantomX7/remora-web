@@ -7,7 +7,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 
 /**
  * Structure for a select option.
@@ -26,6 +26,12 @@ interface FormSelectProps {
 
     /** The label text displayed above the select */
     label: string;
+
+    /**
+     * Optional helper text displayed below the label.
+     * Useful for providing additional context or instructions.
+     */
+    description?: string;
 
     /** Array of options to display in the dropdown */
     options: Option[];
@@ -51,21 +57,26 @@ interface FormSelectProps {
 
 /**
  * A select form field component utilizing Shadcn UI Select.
+ *
  * Integrated with TanStack Form for state management and validation.
  *
  * @example
+ * ```tsx
  * <FormSelect
  *   field={field}
  *   label="Status"
+ *   description="Select the current status of the item"
  *   options={[
  *     { label: "Active", value: "active" },
  *     { label: "Inactive", value: "inactive" }
  *   ]}
  * />
+ * ```
  */
 export function FormSelect({
     field,
     label,
+    description,
     options,
     placeholder = "Select an option",
     required,
@@ -90,6 +101,8 @@ export function FormSelect({
                 {label}
                 {required && <span className="text-destructive ml-1">*</span>}
             </FieldLabel>
+
+            {description && <FieldDescription>{description}</FieldDescription>}
 
             <Select
                 value={value as string}

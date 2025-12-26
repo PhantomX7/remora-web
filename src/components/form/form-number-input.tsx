@@ -2,12 +2,17 @@
 "use client";
 
 import { NumberInput } from "@/components/common/number-input";
-import { Field, FieldLabel, FieldError } from "@/components/ui/field";
+import {
+    Field,
+    FieldLabel,
+    FieldDescription,
+    FieldError,
+} from "@/components/ui/field";
 import type { AnyFieldApi } from "@tanstack/react-form";
 
 /**
  * Props for FormNumberInput component.
- * 
+ *
  * Extends standard HTML input attributes while excluding conflicting props.
  */
 interface FormNumberInputProps
@@ -20,6 +25,12 @@ interface FormNumberInputProps
 
     /** The label text displayed above the input */
     label: string;
+
+    /**
+     * Optional helper text displayed below the label.
+     * Useful for providing additional context or instructions.
+     */
+    description?: string;
 
     /**
      * Custom ID for the input.
@@ -50,8 +61,8 @@ interface FormNumberInputProps
 
 /**
  * A number input form field component integrated with TanStack Form.
- * 
- * Wraps the NumberInput component with standard Label and Error handling.
+ *
+ * Wraps the NumberInput component with standard Label, Description, and Error handling.
  * Automatically formats numbers with thousand separators (1.000.000).
  *
  * @example
@@ -59,6 +70,7 @@ interface FormNumberInputProps
  * <FormNumberInput
  *   field={field}
  *   label="Price (IDR)"
+ *   description="Enter the product price in Indonesian Rupiah"
  *   placeholder="Enter price..."
  *   min={0}
  *   max={1000000}
@@ -69,6 +81,7 @@ interface FormNumberInputProps
 export function FormNumberInput({
     field,
     label,
+    description,
     id,
     required,
     error,
@@ -95,6 +108,8 @@ export function FormNumberInput({
                 {label}
                 {required && <span className="text-destructive ml-1">*</span>}
             </FieldLabel>
+
+            {description && <FieldDescription>{description}</FieldDescription>}
 
             <NumberInput
                 value={value as string | number}

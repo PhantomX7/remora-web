@@ -5,7 +5,12 @@ import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button"; // Assuming you have this, otherwise use a raw <button>
-import { Field, FieldLabel, FieldError } from "@/components/ui/field";
+import {
+    Field,
+    FieldLabel,
+    FieldDescription,
+    FieldError,
+} from "@/components/ui/field";
 import type { AnyFieldApi } from "@tanstack/react-form";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +27,12 @@ interface FormInputProps
 
     /** The label text displayed above the input */
     label: string;
+
+    /**
+     * Optional helper text displayed below the label.
+     * Useful for providing additional context or instructions.
+     */
+    description?: string;
 
     /** Custom ID. Defaults to field name. */
     id?: string;
@@ -41,16 +52,20 @@ interface FormInputProps
  * Automatically handles text, numbers, and **password toggling**.
  *
  * @example
+ * ```tsx
  * <FormInput
  *   field={field}
  *   label="Password"
+ *   description="Must be at least 8 characters with one uppercase letter"
  *   type="password" // Automatically adds show/hide button
  *   required
  * />
+ * ```
  */
 export function FormInput({
     field,
     label,
+    description,
     id,
     required,
     error,
@@ -81,6 +96,8 @@ export function FormInput({
                 {label}
                 {required && <span className="text-destructive ml-1">*</span>}
             </FieldLabel>
+
+            {description && <FieldDescription>{description}</FieldDescription>}
 
             <div className="relative">
                 <Input

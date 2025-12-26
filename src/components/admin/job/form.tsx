@@ -1,40 +1,21 @@
 "use client";
 
 import { useForm } from "@tanstack/react-form";
-import * as z from "zod";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 import { FormButton } from "@/components/form/form-button";
 import { FormInput } from "@/components/form/form-input";
 import { FormSelect } from "@/components/form/form-select";
-import { FormTextarea } from "@/components/form/form-textarea";
+import { FormNumberInput } from "@/components/form/form-number-input";
+import { PayloadFields } from "./payload-fields";
 import { Field, FieldGroup } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { useJobMutations, useJobTypes } from "@/hooks/admin/use-jobs";
 import { AlertCircle, Info } from "lucide-react";
-import { FormNumberInput } from "@/components/form/form-number-input";
-
-const jobSchema = z.object({
-    type: z.string().min(1, "Job type is required"),
-    payload: z.string().refine(
-        (val) => {
-            if (!val || val.trim() === "") return true;
-            try {
-                JSON.parse(val);
-                return true;
-            } catch {
-                return false;
-            }
-        },
-        { message: "Payload must be valid JSON" }
-    ),
-    priority: z.coerce.number().int().min(0).max(100),
-    max_retries: z.coerce.number().int().min(0).max(10).optional(),
-    scheduled_at: z.string().optional(),
-});
 
 export function JobForm() {
     const router = useRouter();
@@ -45,7 +26,10 @@ export function JobForm() {
     const { isPending, error } = createMutation;
     const fieldErrors = error?.error?.fields;
 
-    const selectedTypeInfo = jobTypes?.find((t) => t.type === selectedType);
+    const selectedTypeInfo = useMemo(
+        () => jobTypes?.find((t) => t.type === selectedType),
+        [jobTypes, selectedType]
+    );
 
     const jobTypeOptions =
         jobTypes?.map((type) => ({
@@ -53,26 +37,49 @@ export function JobForm() {
             value: type.type,
         })) || [];
 
-    const form = useForm({
-        defaultValues: {
+    // Build default values including dynamic payload fields
+    const defaultValues = useMemo(() => {
+        const base: Record<string, any> = {
             type: "",
-            payload: "",
             priority: 0,
-            max_retries: undefined as number | undefined,
+            max_retries: undefined,
             scheduled_at: "",
-        },
-        validators: {
-            onSubmit: jobSchema as any,
-        },
-        onSubmit: async ({ value }) => {
-            let payload: Record<string, unknown> | undefined;
+        };
 
-            if (value.payload && value.payload.trim() !== "") {
-                try {
-                    payload = JSON.parse(value.payload);
-                } catch {
-                    return;
-                }
+        // Add payload field defaults
+        if (selectedTypeInfo?.payload_fields) {
+            selectedTypeInfo.payload_fields.forEach((field) => {
+                base[`payload_${field.name}`] = field.default ?? "";
+            });
+        }
+
+        return base;
+    }, [selectedTypeInfo]);
+
+    const form = useForm({
+        defaultValues,
+        onSubmit: async ({ value }) => {
+            // Build payload from dynamic fields
+            const payload: Record<string, any> = {};
+
+            if (selectedTypeInfo?.payload_fields) {
+                selectedTypeInfo.payload_fields.forEach((field) => {
+                    const fieldValue = value[`payload_${field.name}`];
+                    if (
+                        fieldValue !== undefined &&
+                        fieldValue !== "" &&
+                        fieldValue !== null
+                    ) {
+                        // Convert to proper type
+                        if (field.type === "number") {
+                            payload[field.name] = Number(fieldValue);
+                        } else if (field.type === "boolean") {
+                            payload[field.name] = Boolean(fieldValue);
+                        } else {
+                            payload[field.name] = fieldValue;
+                        }
+                    }
+                });
             }
 
             // Convert datetime-local to RFC3339/ISO format
@@ -84,8 +91,7 @@ export function JobForm() {
 
             const data = {
                 type: value.type,
-                payload,
-                // Ensure numbers are actually numbers, not strings
+                payload: Object.keys(payload).length > 0 ? payload : undefined,
                 priority: Number(value.priority) || 0,
                 max_retries:
                     value.max_retries !== undefined &&
@@ -103,6 +109,29 @@ export function JobForm() {
         },
     });
 
+    // Reset payload fields when job type changes
+    const handleTypeChange = (newType: string) => {
+        setSelectedType(newType);
+
+        // Clear old payload fields
+        const currentValues = form.state.values;
+        Object.keys(currentValues).forEach((key) => {
+            if (key.startsWith("payload_")) {
+                form.setFieldValue(key, undefined);
+            }
+        });
+
+        // Set new defaults
+        const newTypeInfo = jobTypes?.find((t) => t.type === newType);
+        if (newTypeInfo?.payload_fields) {
+            newTypeInfo.payload_fields.forEach((field) => {
+                if (field.default !== undefined) {
+                    form.setFieldValue(`payload_${field.name}`, field.default);
+                }
+            });
+        }
+    };
+
     return (
         <div className="grid gap-6 lg:grid-cols-3">
             {/* Form */}
@@ -116,12 +145,12 @@ export function JobForm() {
                     className="space-y-6"
                 >
                     <FieldGroup>
-                        {/* Use listeners pattern like PostForm */}
+                        {/* Job Type Selection */}
                         <form.Field
                             name="type"
                             listeners={{
                                 onChange: ({ value }) => {
-                                    setSelectedType(value);
+                                    handleTypeChange(value);
                                 },
                             }}
                         >
@@ -142,65 +171,75 @@ export function JobForm() {
                             )}
                         </form.Field>
 
-                        <form.Field name="payload">
-                            {(field) => (
-                                <FormTextarea
-                                    field={field}
-                                    label="Payload (JSON)"
-                                    placeholder='{"key": "value"}'
-                                    rows={8}
-                                    className="font-mono text-sm"
-                                    error={fieldErrors?.payload}
+                        {/* Dynamic Payload Fields */}
+                        {selectedType && (
+                            <>
+                                <Separator />
+                                <PayloadFields
+                                    jobType={selectedTypeInfo}
+                                    form={form}
                                     disabled={isPending}
+                                    fieldErrors={fieldErrors}
                                 />
-                            )}
-                        </form.Field>
+                            </>
+                        )}
 
-                        <div className="grid gap-4 sm:grid-cols-2">
-                            <form.Field name="priority">
-                                {(field) => (
-                                    <FormNumberInput
-                                        field={field}
-                                        label="Priority"
-                                        min={0}
-                                        max={100}
-                                        placeholder="0"
-                                        error={fieldErrors?.priority}
-                                        disabled={isPending}
-                                    />
-                                )}
-                            </form.Field>
+                        <Separator />
 
-                            <form.Field name="max_retries">
+                        {/* Job Options */}
+                        <div className="space-y-4">
+                            <Label className="text-sm font-medium">
+                                Job Options
+                            </Label>
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <form.Field name="priority">
+                                    {(field) => (
+                                        <FormNumberInput
+                                            field={field}
+                                            label="Priority"
+                                            min={0}
+                                            max={100}
+                                            placeholder="0"
+                                            error={fieldErrors?.priority}
+                                            disabled={isPending}
+                                            description="Higher priority jobs run first (0-100)"
+                                        />
+                                    )}
+                                </form.Field>
+
+                                <form.Field name="max_retries">
+                                    {(field) => (
+                                        <FormNumberInput
+                                            field={field}
+                                            label="Max Retries"
+                                            min={0}
+                                            max={10}
+                                            placeholder={
+                                                selectedTypeInfo
+                                                    ? `Default: ${selectedTypeInfo.max_retries}`
+                                                    : "Default from job type"
+                                            }
+                                            error={fieldErrors?.max_retries}
+                                            disabled={isPending}
+                                            description="Override default max retries"
+                                        />
+                                    )}
+                                </form.Field>
+                            </div>
+
+                            <form.Field name="scheduled_at">
                                 {(field) => (
-                                    <FormNumberInput
+                                    <FormInput
                                         field={field}
-                                        label="Max Retries"
-                                        min={0}
-                                        max={10}
-                                        placeholder={
-                                            selectedTypeInfo
-                                                ? `Default: ${selectedTypeInfo.max_retries}`
-                                                : "Default from job type"
-                                        }
-                                        error={fieldErrors?.max_retries}
+                                        label="Schedule For"
+                                        type="datetime-local"
+                                        error={fieldErrors?.scheduled_at}
                                         disabled={isPending}
+                                        description="Optional: Schedule job for future execution"
                                     />
                                 )}
                             </form.Field>
                         </div>
-
-                        <form.Field name="scheduled_at">
-                            {(field) => (
-                                <FormInput
-                                    field={field}
-                                    label="Schedule For"
-                                    type="datetime-local"
-                                    error={fieldErrors?.scheduled_at}
-                                    disabled={isPending}
-                                />
-                            )}
-                        </form.Field>
 
                         <Field>
                             <FormButton
@@ -257,6 +296,20 @@ export function JobForm() {
                                     {selectedTypeInfo.timeout}
                                 </p>
                             </div>
+                            {selectedTypeInfo.payload_fields &&
+                                selectedTypeInfo.payload_fields.length > 0 && (
+                                    <div>
+                                        <Label className="text-muted-foreground">
+                                            Required Fields
+                                        </Label>
+                                        <p className="font-medium">
+                                            {selectedTypeInfo.payload_fields
+                                                .filter((f) => f.required)
+                                                .map((f) => f.label)
+                                                .join(", ") || "None"}
+                                        </p>
+                                    </div>
+                                )}
                         </CardContent>
                     </Card>
                 )}
@@ -271,4 +324,13 @@ export function JobForm() {
             </div>
         </div>
     );
+}
+
+function formatTimeout(nanoseconds: number): string {
+    const minutes = nanoseconds / (1000 * 1000 * 1000 * 60);
+    if (minutes >= 60) {
+        const hours = minutes / 60;
+        return `${hours} hour${hours !== 1 ? "s" : ""}`;
+    }
+    return `${minutes} minute${minutes !== 1 ? "s" : ""}`;
 }

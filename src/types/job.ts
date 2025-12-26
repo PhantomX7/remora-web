@@ -48,14 +48,6 @@ export interface JobLog {
     created_at: string;
 }
 
-export interface JobType {
-    type: string;
-    display_name: string;
-    description: string;
-    max_retries: number;
-    timeout: string;
-}
-
 // ============================================================================
 // Job Statistics
 // ============================================================================
@@ -141,6 +133,36 @@ export const LOG_LEVEL_COLORS: Record<LogLevel, string> = {
     warning: "text-yellow-600",
     error: "text-red-600",
 };
+
+// Field types for payload schema
+export type PayloadFieldType = "string" | "number" | "boolean" | "select";
+
+export interface FieldOption {
+    label: string;
+    value: string;
+}
+
+export interface PayloadField {
+    name: string;
+    label: string;
+    type: PayloadFieldType;
+    required: boolean;
+    default?: any;
+    placeholder?: string;
+    description?: string;
+    min?: number;
+    max?: number;
+    options?: FieldOption[];
+}
+
+export interface JobType {
+    type: string;
+    display_name: string;
+    description: string;
+    max_retries: number;
+    timeout: number;
+    payload_fields?: PayloadField[];
+}
 
 // ============================================================================
 // Utility Functions

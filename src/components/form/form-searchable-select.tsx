@@ -2,7 +2,7 @@
 "use client";
 
 import { SearchableSelect } from "@/components/common/searchable-select";
-import { Field, FieldLabel, FieldError } from "@/components/ui/field";
+import { Field, FieldLabel, FieldDescription, FieldError } from "@/components/ui/field";
 import type { AnyFieldApi } from "@tanstack/react-form";
 
 /**
@@ -31,6 +31,12 @@ interface FormSearchableSelectProps<TData = any, TId = any> {
 
     /** The label text displayed above the select input */
     label: string;
+
+    /**
+     * Optional helper text displayed below the label.
+     * Useful for providing additional context or instructions.
+     */
+    description?: string;
 
     /**
      * Hook to fetch options based on a search string.
@@ -92,8 +98,7 @@ interface FormSearchableSelectProps<TData = any, TId = any> {
 
 /**
  * A searchable select form field component integrated with TanStack Form.
- *
- * Wraps the SearchableSelect component with standard Label and Error handling.
+ * Wraps the SearchableSelect component with standard Label, Description, and Error handling.
  *
  * @template TData - The shape of the data object (e.g. Brand, Category)
  * @template TId - The type of the ID (string or number)
@@ -103,6 +108,7 @@ interface FormSearchableSelectProps<TData = any, TId = any> {
  * <FormSearchableSelect
  *   field={field}
  *   label="Brand"
+ *   description="Search and select a brand for this product"
  *   useSearchHook={useSearchBrands}
  *   useSingleItemHook={useBrand}
  *   getOptionLabel={(brand) => brand.name}
@@ -114,6 +120,7 @@ interface FormSearchableSelectProps<TData = any, TId = any> {
 export function FormSearchableSelect<TData = any, TId = any>({
     field,
     label,
+    description,
     id,
     required,
     error,
@@ -137,6 +144,8 @@ export function FormSearchableSelect<TData = any, TId = any>({
                 {label}
                 {required && <span className="text-destructive ml-1">*</span>}
             </FieldLabel>
+
+            {description && <FieldDescription>{description}</FieldDescription>}
 
             <SearchableSelect
                 {...selectProps}
