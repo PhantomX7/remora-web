@@ -2,6 +2,7 @@ import {
     LayoutDashboard,
     User,
     Cog,
+    Briefcase, // Add this for Jobs
 } from "lucide-react";
 
 // Helper constants to ensure consistency
@@ -33,7 +34,7 @@ const createNavItem = (
 
 export const sidebarConfig = {
     navMain: [
-        // CHANGE: Dashboard is now only for Admin & Root
+        // Dashboard - Admin & Root
         createNavItem(
             "Dashboard",
             LayoutDashboard,
@@ -42,7 +43,7 @@ export const sidebarConfig = {
             ROLE_GROUPS.ADMIN_ROOT
         ),
 
-        // Admin & Root Only
+        // User - Root Only
         createNavItem(
             "User",
             User,
@@ -51,6 +52,20 @@ export const sidebarConfig = {
             ROLE_GROUPS.ROOT_ONLY
         ),
 
+        // Jobs - Admin & Root
+        createNavItem(
+            "Jobs",
+            Briefcase,
+            [
+                { title: "Dashboard", url: "/admin/job/dashboard" },
+                { title: "List", url: "/admin/job" },
+                { title: "Create", url: "/admin/job/create" },
+            ],
+            "#",
+            ROLE_GROUPS.ADMIN_ROOT
+        ),
+
+        // Config - Admin & Root
         createNavItem(
             "Config",
             Cog,

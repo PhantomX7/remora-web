@@ -1,7 +1,12 @@
 // lib/api-client.ts
-import { API_BASE_URL, ADMIN_API_ENDPOINTS, PUBLIC_API_ENDPOINTS } from "@/lib/constants";
-import { getAuthTokens, setAuthTokens } from "@/lib/auth";
+import {
+    API_BASE_URL,
+    ADMIN_API_ENDPOINTS,
+    PUBLIC_API_ENDPOINTS,
+} from "@/lib/constants";
+import { getAuthTokens, setAuthTokens, getRefreshToken } from "@/lib/auth";
 import type { AuthTokens } from "@/types/auth";
+
 import type { AuthScope } from "@/lib/constants";
 
 class ApiClient {
@@ -21,17 +26,16 @@ class ApiClient {
 
         this.refreshPromise = (async () => {
             try {
-                // Pass scope to get tokens
-                const tokens = await getAuthTokens(this.scope);
+                const refreshToken = await getRefreshToken(this.scope);
 
-                if (!tokens?.refresh_token) {
+                if (!refreshToken) {
                     return null;
                 }
 
-                // Determine refresh endpoint based on scope
-                const refreshEndpoint = this.scope === "admin"
-                    ? ADMIN_API_ENDPOINTS.AUTH.REFRESH
-                    : PUBLIC_API_ENDPOINTS.AUTH.REFRESH; // Ensure this exists in constants
+                const refreshEndpoint =
+                    this.scope === "admin"
+                        ? ADMIN_API_ENDPOINTS.AUTH.REFRESH
+                        : PUBLIC_API_ENDPOINTS.AUTH.REFRESH;
 
                 const response = await fetch(
                     `${this.baseURL}${refreshEndpoint}`,
@@ -39,7 +43,7 @@ class ApiClient {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
-                            refresh_token: tokens.refresh_token,
+                            refresh_token: refreshToken, // ✅ Use directly
                         }),
                         cache: "no-store",
                     }
@@ -105,7 +109,7 @@ class ApiClient {
                 if (newTokens) {
                     return this.request<T>(endpoint, options, retryCount + 1);
                 }
-                
+
                 const error = new Error("Authentication failed") as any;
                 error.status = 401;
                 error.code = "AUTH_FAILED";
@@ -128,7 +132,8 @@ class ApiClient {
             return response.text() as T;
         } catch (error: any) {
             if (error.status === 401) throw error;
-            if (error.status >= 500) console.error("API request failed:", error);
+            if (error.status >= 500)
+                console.error("API request failed:", error);
             throw error;
         }
     }
@@ -137,7 +142,11 @@ class ApiClient {
         return this.request<T>(endpoint, { ...options, method: "GET" });
     }
 
-    async post<T>(endpoint: string, data?: unknown, options?: RequestInit): Promise<T> {
+    async post<T>(
+        endpoint: string,
+        data?: unknown,
+        options?: RequestInit
+    ): Promise<T> {
         return this.request<T>(endpoint, {
             ...options,
             method: "POST",
@@ -145,7 +154,11 @@ class ApiClient {
         });
     }
 
-    async put<T>(endpoint: string, data?: unknown, options?: RequestInit): Promise<T> {
+    async put<T>(
+        endpoint: string,
+        data?: unknown,
+        options?: RequestInit
+    ): Promise<T> {
         return this.request<T>(endpoint, {
             ...options,
             method: "PUT",
@@ -153,7 +166,11 @@ class ApiClient {
         });
     }
 
-    async patch<T>(endpoint: string, data?: unknown, options?: RequestInit): Promise<T> {
+    async patch<T>(
+        endpoint: string,
+        data?: unknown,
+        options?: RequestInit
+    ): Promise<T> {
         return this.request<T>(endpoint, {
             ...options,
             method: "PATCH",
@@ -165,20 +182,33 @@ class ApiClient {
         return this.request<T>(endpoint, { ...options, method: "DELETE" });
     }
 
-    async getRaw(endpoint: string, options: RequestInit = {}, retryCount = 0): Promise<Response> {
+    async getRaw(
+        endpoint: string,
+        options: RequestInit = {},
+        retryCount = 0
+    ): Promise<Response> {
         const MAX_RETRIES = 1;
         const url = `${this.baseURL}${endpoint}`;
 
         try {
-            const headers = await this.getHeaders(options.headers, options.body);
-            const response = await fetch(url, { ...options, method: "GET", headers });
+            const headers = await this.getHeaders(
+                options.headers,
+                options.body
+            );
+            const response = await fetch(url, {
+                ...options,
+                method: "GET",
+                headers,
+            });
 
             if (response.status === 401 && retryCount < MAX_RETRIES) {
                 const newTokens = await this.refreshTokens();
-                if (newTokens) return this.getRaw(endpoint, options, retryCount + 1);
+                if (newTokens)
+                    return this.getRaw(endpoint, options, retryCount + 1);
             }
 
-            if (!response.ok) throw new Error(`Download failed: ${response.statusText}`);
+            if (!response.ok)
+                throw new Error(`Download failed: ${response.statusText}`);
             return response;
         } catch (error) {
             console.error("API Raw request failed:", error);
