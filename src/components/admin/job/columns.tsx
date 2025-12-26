@@ -50,6 +50,7 @@ export function createJobColumns({
         {
             accessorKey: "id",
             header: "ID",
+            maxSize: 50,
             cell: ({ row }) => (
                 <Link
                     href={`/admin/job/${row.original.id}`}

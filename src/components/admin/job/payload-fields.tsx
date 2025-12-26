@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { FormInput } from "@/components/form/form-input";
 import { FormNumberInput } from "@/components/form/form-number-input";
 import { FormSelect } from "@/components/form/form-select";
@@ -12,7 +11,7 @@ import { Info } from "lucide-react";
 
 interface PayloadFieldsProps {
     jobType: JobType | undefined;
-    form: any; 
+    form: any;
     disabled?: boolean;
     fieldErrors?: Record<string, string>;
 }
@@ -24,20 +23,6 @@ export function PayloadFields({
     fieldErrors,
 }: PayloadFieldsProps) {
     const payloadFields = jobType?.payload_fields || [];
-
-    // Set default values when job type changes
-    useEffect(() => {
-        if (!jobType?.payload_fields) return;
-
-        jobType.payload_fields.forEach((field) => {
-            if (field.default !== undefined) {
-                const currentValue = form.getFieldValue(`payload_${field.name}`);
-                if (currentValue === undefined || currentValue === "" || currentValue === null) {
-                    form.setFieldValue(`payload_${field.name}`, field.default);
-                }
-            }
-        });
-    }, [jobType, form]);
 
     if (payloadFields.length === 0) {
         return (
@@ -80,10 +65,18 @@ interface PayloadFieldInputProps {
 function PayloadFieldInput({
     field,
     form,
-    disabled = false,
+    disabled,
     error,
 }: PayloadFieldInputProps) {
     const fieldName = `payload_${field.name}`;
+
+    const commonProps = {
+        label: field.label,
+        required: field.required,
+        disabled,
+        error,
+        description: field.description,
+    };
 
     switch (field.type) {
         case "string":
@@ -92,12 +85,8 @@ function PayloadFieldInput({
                     {(formField: any) => (
                         <FormInput
                             field={formField}
-                            label={field.label}
                             placeholder={field.placeholder}
-                            required={field.required}
-                            disabled={disabled}
-                            error={error}
-                            description={field.description}
+                            {...commonProps}
                         />
                     )}
                 </form.Field>
@@ -109,14 +98,10 @@ function PayloadFieldInput({
                     {(formField: any) => (
                         <FormNumberInput
                             field={formField}
-                            label={field.label}
                             placeholder={field.placeholder}
-                            required={field.required}
-                            disabled={disabled}
-                            error={error}
-                            description={field.description}
                             min={field.min}
                             max={field.max}
+                            {...commonProps}
                         />
                     )}
                 </form.Field>
@@ -142,18 +127,16 @@ function PayloadFieldInput({
                     {(formField: any) => (
                         <FormSelect
                             field={formField}
-                            label={field.label}
-                            placeholder={field.placeholder || `Select ${field.label}`}
+                            placeholder={
+                                field.placeholder || `Select ${field.label}`
+                            }
                             options={
                                 field.options?.map((opt) => ({
                                     label: opt.label,
                                     value: opt.value,
                                 })) || []
                             }
-                            required={field.required}
-                            disabled={disabled}
-                            error={error}
-                            description={field.description}
+                            {...commonProps}
                         />
                     )}
                 </form.Field>
